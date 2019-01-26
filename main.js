@@ -22,6 +22,12 @@ let gAnimationMixer;
 gRenderer.setSize(viewWidth, viewHeight);
 document.body.appendChild(gRenderer.domElement);
 
+const boneLinks = [];
+const boneLinkMap = {
+    'Mh_female_RightFoot': 'Armature_Bone',
+    'Mh_female_RightToeBase': 'Armature_FrontBone',
+};
+
 (async function init() {
     const [characterBlend, shoeBlend] = await Promise.all([
         await utils.loadModel('model/mh-female-character-humanik-1uv.gltf'),
@@ -30,22 +36,37 @@ document.body.appendChild(gRenderer.domElement);
 
     [characterBlend, shoeBlend].forEach(({scene}) => setMaterial(scene));
 
-    console.log(shoeBlend);
-
     const character = characterBlend.scene.children[0];
     const shoe = shoeBlend.scene;
 
     shoe.scale.set(1.1, 1.1, 1.1);
-    shoe.rotation.set(-Math.PI / 2,0,0);
-    shoe.position.set(-0.05, -0.45, 0.25);
+    // shoe.rotation.set(-Math.PI / 2, 0, 0);
+    // shoe.position.set(-0.05, -0.45, 0.25);
+    shoe.rotation.set(-1, 0, 0);
+    shoe.position.set(0, -2.5, -1);
+
+    console.log(shoe);
+    
 
     character.traverse((child) => {
-        if (child.isBone && child.name === 'Mh_female_RightToeBase') { // Mh_female_RightFoot
+        if (child.isBone && child.name === 'Mh_female_RightFoot') {
             child.add(shoe);
+        }
+    
+        if (child.isBone && boneLinkMap[child.name]) {
+            shoe.traverse((shoeChild) => {
+                if (shoeChild.isBone && shoeChild.name === boneLinkMap[child.name]) {
+                    boneLinks.push({
+                        target: shoeChild,
+                        origin: child,
+                    });
+                }
+            });
         }
     });
 
     gScene.add(character);
+    // gScene.add(shoe);
     // character.add(gCamera);
 
     gAnimationMixer = new THREE.AnimationMixer(character);
@@ -70,7 +91,12 @@ function setMaterial(scene) {
 }
 
 function animate() {
-    const elapsedTime = gClock.getDelta() * gAnimationMixer.timeScale;
+    const elapsedTime = gClock.getDelta() * 0.5;
+
+    boneLinks.forEach(({origin, target}) => {
+        target.position.copy(origin.position);
+        target.quaternion.copy(origin.quaternion);
+    });
 
     gAnimationMixer.update(elapsedTime);
 }
